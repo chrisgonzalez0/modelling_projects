@@ -5,32 +5,36 @@ with sched as (
 	nts.team_id ,
 	row_number() over (partition by nts.boxscore_id order by nts."year" desc) "ranker" 
 	from nfl_team_schedules nts 
-)
+),
+snapcount_games as (
+	select 
+	nbs.*,
+	case 
+		when sched1.home_away='@' then sched1.team_id
+		when sched2.home_away='@' then sched2.team_id
+		when sched1.ranker=1 then sched1.team_id
+	end as away_team,
+	case 
+		when sched1.home_away is null then sched1.team_id
+		when sched2.home_away is null then sched2.team_id
+		when sched2.ranker=2 then sched2.team_id
+	end as home_team
+	from nfl_boxscore_snapcount nbs 
+	left join sched sched1 on sched1.boxscore_id=nbs.boxscore_id and sched1.ranker=1
+	left join sched sched2 on sched2.boxscore_id=nbs.boxscore_id and sched2.ranker=2
+) 
 
 select 
-nbs.*,
-case 
-	when sched1.home_away='@' then sched1.team_id
-	when sched2.home_away='@' then sched2.team_id
-	when sched1.ranker=1 then sched1.team_id
-end as away_team,
-case 
-	when sched1.home_away is null then sched1.team_id
-	when sched2.home_away is null then sched2.team_id
-	when sched2.ranker=2 then sched2.team_id
-end as home_team,
+distinct 
+sg.*,
+coalesce(ntr1.team_id ,ntr2.team_id)  
+from snapcount_games sg 
+left join nfl_team_rosters ntr1 on sg.player_id=ntr1.player_id and sg.away_team=ntr1.team_id 
+left join nfl_team_rosters ntr2 on sg.player_id=ntr2.player_id and sg.home_team=ntr2.team_id 
+where sg.boxscore_id='202202130cin'
+order by sg.boxscore_id --,cast(sg."Off._Num" as float) desc
+limit 10000 
 
-coalesce(cast(nbs."Off._Num" as float),0)+coalesce(cast(nbs."ST_Num" as float),0)+coalesce(cast(nbs."Def._Num" as float),0) as total_snaps
-
-from nfl_boxscore_snapcount nbs 
-left join sched sched1 on sched1.boxscore_id=nbs.boxscore_id and sched1.ranker=1
-left join sched sched2 on sched2.boxscore_id=nbs.boxscore_id and sched2.ranker=2
-where sched1.home_away='N'
-order by 
-	nbs.boxscore_id asc,
-	coalesce(cast(nbs."Off._Num" as float),0)+coalesce(cast(nbs."ST_Num" as float),0)+coalesce(cast(nbs."Def._Num" as float),0) desc	
-
-	
 
 select *
 from nfl_team_rosters ntr 
@@ -93,7 +97,14 @@ full outer join nfl_boxscore_kicking nbk on nbk.player_id=coalesce(nbo.player_id
 order by coalesce(nbo.boxscore_id,nbd.boxscore_id,nbkr.boxscore_id,nbk.boxscore_id) desc
 limit 1000 
 	
-	
+
+select *
+from nfl_year_summaries nys 
+
+select *
+from nfl_team_rosters ntr 
+where ntr.team_id ='lar'
+
 select *
 from nfl_boxscore_defense nbd 
 limit 1000 
