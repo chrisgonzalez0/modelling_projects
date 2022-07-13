@@ -12,9 +12,11 @@ select
 	cs.college_href,
 	cs."School",
 	cct.conference_href, 
+	regexp_replace(cs."School" , '[^0-9]+', '', 'g') as team_rank,
 	cs."Opponent",
 	cs.opp_href ,
 	cs.opp_conf_href,
+	regexp_replace(cs."Opponent" , '[^0-9]+', '', 'g') as opp_rank,	
 	cs.boxscore_href,
 	cs."year" ,
 	cs."G",
@@ -30,7 +32,7 @@ from cfb_schedule cs
 left join cfb_conference_teams cct on cct."year" =cs."year" and cct.college_href =cs.college_href
 left join cfb_rosters cr on cr."year" =cs."year" and cr.college_href =cs.college_href 
 left join cfb_player_ht_wt cphw on cphw.player_href=cr.player_href  
-where cr."Player" ='Calvin Ridley'
+where cr."Player" ='Joe Burrow'
 order by cs.boxscore_href desc
 limit 1000 
 
