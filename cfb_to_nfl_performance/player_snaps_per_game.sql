@@ -112,7 +112,7 @@ base_stats as (
 	) boxscores on boxscores.player_id=sc.player_id and boxscores.boxscore_id=sc.boxscore_id
 	left join player_keys pk on pk.player_id=sc.player_id
 	where 
-		ntr.yrs='Rook' 
+		ntr.yrs in ('Rook','1','2')
 ) 
 
 /* This has the total number of 
@@ -125,6 +125,7 @@ select
 	bs.team_id,
 	sum(bs.off_num+bs.def_num+bs.st_num)
 from base_stats bs
+where bs."Pos"='RB'
 group by 
 	bs.college_id,
 	bs.player_id,
@@ -133,6 +134,11 @@ group by
 	bs.team_id
 order by 
 	sum(bs.off_num+bs.def_num+bs.st_num) desc
+	
+	
+	
+	
+	
 	
 	
 	
