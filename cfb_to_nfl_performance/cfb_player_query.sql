@@ -1,4 +1,4 @@
-
+drop table if exists cfb_player_query_table;
 
 select 
 	cs.college_href,
@@ -20,7 +20,31 @@ select
 	cr."Class" ,
 	cr."Pos" ,
 	cphw.height,cphw.weight ,
-	stats.*
+	stats."Passing_Att",
+	stats."Passing_Cmp",
+	stats."Passing_Yds",
+	stats."Passing_TD",
+	stats."Passing_Int",
+	stats."Rushing_Att",
+	stats."Rushing_Yds",
+	stats."Rushing_TD",
+	stats."Receiving_Rec",
+	stats."Receiving_Yds",
+	stats."Receiving_TD",
+	stats."Tackles_Solo",
+	stats."Tackles_Ast",
+	stats."Tackles_Tot",
+	stats."Tackles_Loss",
+	stats."Tackles_Sk",
+	stats."Def Int_Int",
+	stats."Def Int_Yds",
+	stats."Def Int_TD",
+	stats."Def Int_PD",
+	stats."Fumbles_FR",
+	stats."Fumbles_Yds",
+	stats."Fumbles_TD",
+	stats."Fumbles_FF"
+into cfb_player_query_table	
 from cfb_schedule cs 
 left join cfb_conference_teams cct on cct."year" =cs."year" and cct.college_href =cs.college_href
 left join cfb_rosters cr on cr."year" =cs."year" and cr.college_href =cs.college_href 
@@ -58,10 +82,5 @@ full outer join cfb_rush_rec crr on crr.player_href=cp.player_href and crr.boxsc
 full outer join cfb_defense cd on cd.player_href=coalesce(crr.player_href,cp.player_href) and cd.boxscore_href=coalesce(crr.boxscore_href,cp.boxscore_href) 
 full outer join cfb_kick_returns ckr on ckr.player_href=coalesce(cd.player_href,crr.player_href,cp.player_href) and ckr.boxscore_href=coalesce(cd.boxscore_href,crr.boxscore_href,cp.boxscore_href) 
 full outer join cfb_kicking ck on ck.player_href=coalesce(ckr.player_href,cd.player_href,crr.player_href,cp.player_href) and ck.boxscore_href=coalesce(ckr.boxscore_href,cd.boxscore_href,crr.boxscore_href,cp.boxscore_href)
-) stats on stats.player_href=cr.player_href and stats.boxscore_href=cs.boxscore_href 
-where 
-cr."Player" ='Zach Wilson'
-and cs.college_href='brigham-young' 
-order by cs.boxscore_href desc
-limit 1000 
+) stats on stats.player_href=cr.player_href and stats.boxscore_href=cs.boxscore_href ;
 

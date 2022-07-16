@@ -1,3 +1,5 @@
+drop table if exists nfl_player_snaps_table;
+
 with sched as (
 	select 
 		nts.boxscore_id ,
@@ -214,7 +216,8 @@ select
 	sum(bs."Scoring_FGA") "Scoring_FGA",		
 	sum(bs."Punting_Pnt") "Punting_Pnt",
 	sum(bs."Punting_Yds") "Punting_Yds"		
-	
+
+into nfl_player_snaps_table	
 from base_stats bs
 left join (
 	select 
@@ -223,20 +226,14 @@ left join (
 	from base_stats bs 
 	group by bs.player_id
 ) min_year on min_year.player_id=bs.player_id
-where bs."Pos"='WR'
 group by 
 	bs.college_id,
 	bs.player_id,
 	bs."Player",
 	bs."Pos"
 order by 
-	min(min_year.first_year) desc,
 	sum(bs.off_num+bs.def_num+bs.st_num) desc
-	
-	
-	
-	
-	
-	
-	
+;	
+
+
 	
