@@ -170,7 +170,6 @@ select
 	bs.college_id,
 	bs.player_id,
 	bs."Player",
-	bs."Pos",
 	count(distinct bs.yrs) as years_played,
 	sum(bs.off_num+bs.def_num+bs.st_num) as snapcounts,
 	min(min_year.first_year) as first_year,
@@ -229,8 +228,7 @@ left join (
 group by 
 	bs.college_id,
 	bs.player_id,
-	bs."Player",
-	bs."Pos"
+	bs."Player"
 order by 
 	sum(bs.off_num+bs.def_num+bs.st_num) desc
 ;	
