@@ -35,11 +35,11 @@ x_numerical_cols=['Pts','Opp','G','wins_so_far','losses_so_far','Passing_Att',
 means=samp.loc[:,x_numerical_cols].mean(axis=0)
 stds=samp.loc[:,x_numerical_cols].std(axis=0)
 
-
+## view smaller data sample
+view_data=samp.iloc[1:1000,:]
 
 x_categoricals=['team_rank','conference_href','home_away','w_l','Class','Pos']
 samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']='NR'
-
 
 
 'height_inches', 'weight', 
