@@ -27,6 +27,8 @@ select
 	cphw.height,
 	cast(split_part(cphw.height,'-',1) as float)*12+cast(split_part(cphw.height,'-',2) as float) as height_inches,	
 	cphw.weight ,
+	case when cphw.height is null or cphw.weight is null then 1 else 0 end "missing_hw",
+	
 	coalesce(stats."Passing_Att",0) "Passing_Att",
 	coalesce(stats."Passing_Cmp",0) "Passing_Cmp",
 	coalesce(stats."Passing_Yds",0) "Passing_Yds",
