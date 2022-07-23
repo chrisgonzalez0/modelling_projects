@@ -2,4 +2,6 @@ Some python scripting for implementing neural network style transfers between im
 
 https://colab.research.google.com/drive/1ffftXzto-1ogAgioQWqbJEIDbcM1Huws#scrollTo=INhqKhSO2-72
 
+Implemeentation instructions here: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
+
 This is a fun project I did for the Anti-Cruelty Society here in Chicago for a fundraiser. 
