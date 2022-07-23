@@ -24,7 +24,7 @@ os.chdir('/Users/chrisgonzalez/Documents/projects/neural_network_art/')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-imsize = 512 if torch.cuda.is_available() else 256  # use small size if no gpu
+imsize = 512 if torch.cuda.is_available() else 512  # use small size if no gpu
 
 loader = transforms.Compose([
     transforms.Resize(imsize),  # scale imported image
@@ -233,8 +233,6 @@ class StyleLoss(nn.Module):
         return input
 
 ## end function definitions here 
-
-
 
 
 
