@@ -8,5 +8,5 @@ This is a fun project I did for the Anti-Cruelty Society here in Chicago for a f
 
 Example: 
 
-https://github.com/chrisgonzalez0/projects/blob/master/neural_network_art/inputs/rocket.jpg
+![image](https://user-images.githubusercontent.com/40676419/180860907-bb8c190f-e026-40e2-a4b9-8f0f83634e23.png)
 
