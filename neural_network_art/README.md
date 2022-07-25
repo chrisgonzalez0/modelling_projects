@@ -5,3 +5,8 @@ https://colab.research.google.com/drive/1ffftXzto-1ogAgioQWqbJEIDbcM1Huws#scroll
 Implemeentation instructions here: https://pytorch.org/tutorials/advanced/neural_style_tutorial.html
 
 This is a fun project I did for the Anti-Cruelty Society here in Chicago for a fundraiser. 
+
+Example: 
+
+https://github.com/chrisgonzalez0/projects/blob/master/neural_network_art/inputs/rocket.jpg
+
