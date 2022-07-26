@@ -41,12 +41,18 @@ samples.loc[:,'snapcounts']=samples.loc[:,'snapcounts'].div(samples.years_played
 #samples.groupby(['first_year']).count()
 
 ## x data
-sql_query='select * from cfb_player_query_table p where p."year" >= 2008'
+sql_query='select * from cfb_player_query_table p where p."year" >= 2008 and p."year" < 2021'
 samp=pd.read_sql_query(sql=sql_query, con=engine)
+engine.dispose()
+del(engine)
+
+
+samp['team_rank_NR']=0
+samp['team_rank_NR'][samp.loc[:,'team_rank']=='']=1
+samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']=0
 
 ## view smaller data sample
 view_data=samp.iloc[1:1000,:]
-
 
 x_numerical_cols=['Pts','Opp','G','wins_so_far','losses_so_far','Passing_Att',
             'Passing_Cmp', 'Passing_Yds', 'Passing_TD', 'Passing_Int',
@@ -57,16 +63,86 @@ x_numerical_cols=['Pts','Opp','G','wins_so_far','losses_so_far','Passing_Att',
             'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF','height_inches','weight']
 means=samp.loc[:,x_numerical_cols].mean(axis=0)
 stds=samp.loc[:,x_numerical_cols].std(axis=0)
+samp.loc[:,'height_inches'][samp.loc[:,'height_inches'].isna()]=0
+samp.loc[:,'weight'][samp.loc[:,'weight'].isna()]=0
+
+""" normalize data """ 
+samp.loc[:,x_numerical_cols]=(samp.loc[:,x_numerical_cols]-means)/stds
+
+""" categoricals """
+x_categoricals=['conference_href','home_away','w_l','Class','Pos']
+cate=pd.get_dummies(samp.loc[:,x_categoricals])
+x_categoricals=list(cate.columns)
+samp=pd.concat([samp,cate],axis=1)
+del(cate)
+
+## view smaller data sample
+view_data=samp.iloc[1:1000,:]
 
 
-x_categoricals=['team_rank','conference_href','home_away','w_l','Class','Pos']
-samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']='NR'
+""" Create Tensor for signle player here """
+# 2 own team and opponent by   48 games  by  180 rows/players   by 89 columns boxscores
+import torch
+x_data=torch.zeros([48,2,180,89])
 
 
 
+college_id='joe-thuney-1'
+
+# example
+boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
+boxscoresteam=list(samp.loc[samp.player_href==college_id,'boxscore_href']+'_'+samp.loc[ samp.player_href==college_id,'college_href'])
+
+same_team=samp[samp.boxscore_href.isin(boxscores)]
+opp_team=same_team[~(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
+same_team=same_team[(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
+
+same_team['is_player']=0
+same_team['is_player'][same_team.player_href==college_id]=1
+opp_team['is_player']=0
+
+same_team['na_player']=0
+opp_team['na_player']=0
+same_team['na_game']=0
+opp_team['na_game']=0
+
+
+boxscores.sort(reverse=True)
+
+for i in range(x_data.shape[0]):
+    
+    if i < len(boxscores): """ has a game """
+        same_team=same_team.loc[same_team.boxscore_href==boxscores[i],:]
+        same_team=np.array(same_team.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])
+        
+        """ put into x_data tensor """
+        if same_team.shape[0] < x_data.shape[2]:
+            fill=pd.DataFrame( np.zeros([x_data.shape[2]-same_team.shape[0],x_data.shape[3]]), columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'] )
+            fill['na_player']=1
+            same_team=np.concatenate((same_team,fill),axis=0)
+        else:
+            same_team=same_team[0:x_data.shape[2],:]
+                    
+        x_data[i][0]=torch.from_numpy(same_team.astype('float64'))        
+        
+
+    else: """ does not have a game """
+        same_team=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
+        same_team['na_game']=1
+        same_team['na_player']=1
+    
+
+
+
+
+
+
+
+
+
+
+list(samp.boxscore_href+'_'+samp.college_href).
 
 ###################################
 
 
-engine.dispose()
-del(engine)
