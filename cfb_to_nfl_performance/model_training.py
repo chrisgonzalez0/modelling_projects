@@ -83,66 +83,87 @@ view_data=samp.iloc[1:1000,:]
 """ Create Tensor for signle player here """
 # 2 own team and opponent by   48 games  by  180 rows/players   by 89 columns boxscores
 import torch
-x_data=torch.zeros([48,2,180,89])
 
-
-
-college_id='joe-thuney-1'
-
-# example
-boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
-boxscoresteam=list(samp.loc[samp.player_href==college_id,'boxscore_href']+'_'+samp.loc[ samp.player_href==college_id,'college_href'])
-
-same_team=samp[samp.boxscore_href.isin(boxscores)]
-opp_team=same_team[~(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
-same_team=same_team[(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
-
-same_team['is_player']=0
-same_team['is_player'][same_team.player_href==college_id]=1
-opp_team['is_player']=0
-
-same_team['na_player']=0
-opp_team['na_player']=0
-same_team['na_game']=0
-opp_team['na_game']=0
-
-
-boxscores.sort(reverse=True)
-
-for i in range(x_data.shape[0]):
+def make_x_data_tensor(player_id):
     
-    if i < len(boxscores): """ has a game """
-        same_team=same_team.loc[same_team.boxscore_href==boxscores[i],:]
-        same_team=np.array(same_team.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])
+    x_data=torch.zeros([48,2,180,89])
+    college_id=player_id
+    
+    # example
+    boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
+    boxscoresteam=list(samp.loc[samp.player_href==college_id,'boxscore_href']+'_'+samp.loc[ samp.player_href==college_id,'college_href'])
+    
+    same_team=samp[samp.boxscore_href.isin(boxscores)]
+    opp_team=same_team[~(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
+    same_team=same_team[(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
+    
+    same_team['is_player']=0
+    same_team['is_player'][same_team.player_href==college_id]=1
+    opp_team['is_player']=0
+    
+    same_team['na_player']=0
+    opp_team['na_player']=0
+    same_team['na_game']=0
+    opp_team['na_game']=0
+    
+    
+    boxscores.sort(reverse=True)
+    
+    for i in range(x_data.shape[0]):
         
-        """ put into x_data tensor """
-        if same_team.shape[0] < x_data.shape[2]:
-            fill=pd.DataFrame( np.zeros([x_data.shape[2]-same_team.shape[0],x_data.shape[3]]), columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'] )
-            fill['na_player']=1
-            same_team=np.concatenate((same_team,fill),axis=0)
+        if i < len(boxscores):
+        
+            ### same team logic 
+            same_team_temp=same_team.loc[same_team.boxscore_href==boxscores[i],:]
+            same_team_temp=np.array(same_team_temp.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])
+            
+            """ put into x_data tensor """
+            if same_team_temp.shape[0] < x_data.shape[2]:
+                fill=pd.DataFrame( np.zeros([x_data.shape[2]-same_team_temp.shape[0],x_data.shape[3]]), columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'] )
+                fill['na_player']=1
+                same_team_temp=np.concatenate((same_team_temp,fill),axis=0)
+                np.random.shuffle(same_team_temp)
+            else:
+                same_team_temp=same_team_temp[0:x_data.shape[2],:]
+                np.random.shuffle(same_team_temp)
+                        
+            x_data[i][0]=torch.from_numpy(same_team_temp.astype('float64'))        
+            
+            ### opp team logic 
+            opp_team_temp=opp_team.loc[opp_team.boxscore_href==boxscores[i],:]
+            opp_team_temp=np.array(opp_team_temp.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])
+            """ put into x_data tensor """
+            if opp_team_temp.shape[0] < x_data.shape[2]:
+                fill=pd.DataFrame( np.zeros([x_data.shape[2]-opp_team_temp.shape[0],x_data.shape[3]]), columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'] )
+                fill['na_player']=1
+                opp_team_temp=np.concatenate((opp_team_temp,fill),axis=0)
+                np.random.shuffle(opp_team_temp)                
+            else:
+                opp_team_temp=opp_team[0:x_data.shape[2],:]
+                np.random.shuffle(opp_team_temp)                
+                        
+            x_data[i][1]=torch.from_numpy(opp_team_temp.astype('float64'))        
+            
+            
         else:
-            same_team=same_team[0:x_data.shape[2],:]
-                    
-        x_data[i][0]=torch.from_numpy(same_team.astype('float64'))        
-        
-
-    else: """ does not have a game """
-        same_team=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
-        same_team['na_game']=1
-        same_team['na_player']=1
+            same_team_temp=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
+            same_team_temp['na_game']=1
+            same_team_temp['na_player']=1
+            same_team_temp=np.array(same_team_temp)
+            
+            opp_team_temp=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
+            opp_team_temp['na_game']=1
+            opp_team_temp['na_player']=1
+            opp_team_temp=np.array(opp_team_temp)
+            
+            x_data[i][0]=torch.from_numpy(same_team_temp.astype('float64'))        
+            x_data[i][1]=torch.from_numpy(opp_team_temp.astype('float64'))        
     
+    return x_data
 
 
-
-
-
-
-
-
-
-
-list(samp.boxscore_href+'_'+samp.college_href).
-
-###################################
-
+### model training 
+samples=samples.sample(frac=1)
+train_ids=samples.college_id[samples.first_year!=2021]
+test_ids=samples.college_id[samples.first_year==2021]
 
