@@ -12,6 +12,8 @@ import psycopg2
 import pandas as pd
 import numpy as np
 
+import nn_model
+
 os.chdir('/Users/chrisgonzalez/Documents/projects/cfb_to_nfl_performance/')
 
 engine = create_engine('postgresql://postgres:estarguars@localhost:5432/postgres')
@@ -166,4 +168,10 @@ def make_x_data_tensor(player_id):
 samples=samples.sample(frac=1)
 train_ids=samples.college_id[samples.first_year!=2021]
 test_ids=samples.college_id[samples.first_year==2021]
+
+nn=nn_model.NeuralNetwork(3,5,8,16)
+
+
+
+
 
