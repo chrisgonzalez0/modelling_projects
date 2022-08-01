@@ -55,8 +55,10 @@ del(engine)
 
 
 samp['team_rank_NR']=0
-samp['team_rank_NR'][samp.loc[:,'team_rank']=='']=1
-samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']=0
+samp.loc[samp.team_rank=='','team_rank_NR']=1
+#samp['team_rank_NR'][samp.loc[:,'team_rank']=='']=1
+samp.loc[samp.team_rank=='','team_rank']=0
+#samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']=0
 samp.loc[ samp.wins_so_far.isna(),'wins_so_far' ]=0
 samp.loc[ samp.losses_so_far.isna(),'losses_so_far' ]=0
 samp.loc[ samp.Pts.isna(),'Pts' ]=0
@@ -74,8 +76,11 @@ x_numerical_cols=['Pts','Opp','G','wins_so_far','losses_so_far','Passing_Att',
             'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF','height_inches','weight']
 means=samp.loc[:,x_numerical_cols].mean(axis=0)
 stds=samp.loc[:,x_numerical_cols].std(axis=0)
-samp.loc[:,'height_inches'][samp.loc[:,'height_inches'].isna()]=0
-samp.loc[:,'weight'][samp.loc[:,'weight'].isna()]=0
+
+samp.loc[samp.height_inches.isna(),'height_inches']=0
+#samp.loc[:,'height_inches'][samp.loc[:,'height_inches'].isna()]=0
+samp.loc[samp.weight.isna(),'weight']=0
+#samp.loc[:,'weight'][samp.loc[:,'weight'].isna()]=0
 
 
 """ normalize data """ 
