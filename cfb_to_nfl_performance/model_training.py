@@ -40,6 +40,7 @@ del(temp)
 samples.loc[:,cols]=samples.loc[:,cols].div(samples.snapcounts,axis=0)
 samples.loc[:,'snapcounts']=samples.loc[:,'snapcounts'].div(samples.years_played,axis=0)
 
+""" normalize maybe? """
 y_means=samples.loc[:,cols+['snapcounts']].mean(axis=0)
 y_stds=samples.loc[:,cols+['snapcounts']].std(axis=0)
 samples.loc[:,cols+['snapcounts']]=( samples.loc[:,cols+['snapcounts']] - y_means )/y_stds
@@ -190,12 +191,14 @@ def make_x_data_tensor(player_id,debug_flag=''):
 
 ### model training 
 import nn_model
-nn=nn_model.NeuralNetwork(4,4,4,16)
+nn=nn_model.NeuralNetwork(6,4,8,16)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(nn.parameters(), lr=1e-3)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-5)
 
 iters=100000
 for k in range(iters):
+    loss_list=[]
+    
     samples=samples.sample(frac=1)
     train_ids=list(samples.college_id[samples.first_year!=2021])
     test_ids=list(samples.college_id[samples.first_year==2021])
@@ -215,11 +218,13 @@ for k in range(iters):
         loss_val.backward()
         optimizer.step()
         
-        print(train_ids[j])
-        print(loss_val)
-        print(torch.isnan(x_train).any())
+        #print(train_ids[j])
+        #print(loss_val)
+        #print(torch.isnan(x_train).any())
         #print(nn.layer5.weight)
-
+        loss_list.append(loss_val.item())
+        
+    print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
 
     
 
