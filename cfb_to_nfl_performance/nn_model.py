@@ -22,7 +22,7 @@ class NeuralNetwork(nn.Module):
         self.layer4=nn.Linear(48, games_out)
         
         self.flatten = nn.Flatten()
-        self.activation=nn.Softmax()
+        self.activation=nn.LogSoftmax(dim=3)
         
         self.layer5=nn.Linear(games_out*opps_out*rows_out*cols_out , 43)
         
@@ -41,10 +41,10 @@ class NeuralNetwork(nn.Module):
         x=x.reshape( [ x.shape[3],x.shape[1],x.shape[2],x.shape[0] ] )        
         x=self.layer4(x)
         x=self.activation(x)
-        print(x.shape)
+        #print(x.shape)
         
         x=x.flatten()
-        print(x.shape)
+        #print(x.shape)
         x=self.layer5(x)
         
         return x

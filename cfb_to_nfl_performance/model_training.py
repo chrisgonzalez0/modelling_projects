@@ -12,7 +12,7 @@ import psycopg2
 import pandas as pd
 import numpy as np
 
-import nn_model
+
 
 os.chdir('/Users/chrisgonzalez/Documents/projects/cfb_to_nfl_performance/')
 
@@ -39,6 +39,11 @@ samples.loc[:,cols]=temp
 del(temp)
 samples.loc[:,cols]=samples.loc[:,cols].div(samples.snapcounts,axis=0)
 samples.loc[:,'snapcounts']=samples.loc[:,'snapcounts'].div(samples.years_played,axis=0)
+
+y_means=samples.loc[:,cols+['snapcounts']].mean(axis=0)
+y_stds=samples.loc[:,cols+['snapcounts']].std(axis=0)
+samples.loc[:,cols+['snapcounts']]=( samples.loc[:,cols+['snapcounts']] - y_means )/y_stds
+
 ###################################
 #samples.groupby(['first_year']).count()
 
@@ -52,6 +57,10 @@ del(engine)
 samp['team_rank_NR']=0
 samp['team_rank_NR'][samp.loc[:,'team_rank']=='']=1
 samp.loc[:,'team_rank'][samp.loc[:,'team_rank']=='']=0
+samp.loc[ samp.wins_so_far.isna(),'wins_so_far' ]=0
+samp.loc[ samp.losses_so_far.isna(),'losses_so_far' ]=0
+samp.loc[ samp.Pts.isna(),'Pts' ]=0
+samp.loc[ samp.Opp.isna(),'Opp' ]=0
 
 ## view smaller data sample
 view_data=samp.iloc[1:1000,:]
@@ -67,6 +76,7 @@ means=samp.loc[:,x_numerical_cols].mean(axis=0)
 stds=samp.loc[:,x_numerical_cols].std(axis=0)
 samp.loc[:,'height_inches'][samp.loc[:,'height_inches'].isna()]=0
 samp.loc[:,'weight'][samp.loc[:,'weight'].isna()]=0
+
 
 """ normalize data """ 
 samp.loc[:,x_numerical_cols]=(samp.loc[:,x_numerical_cols]-means)/stds
@@ -86,10 +96,12 @@ view_data=samp.iloc[1:1000,:]
 # 2 own team and opponent by   48 games  by  180 rows/players   by 89 columns boxscores
 import torch
 
-def make_x_data_tensor(player_id):
+def make_x_data_tensor(player_id,debug_flag=''):
     
     x_data=torch.zeros([48,2,180,89])
     college_id=player_id
+    #college_id='corey-thompson-3'
+    
     
     # example
     boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
@@ -100,7 +112,8 @@ def make_x_data_tensor(player_id):
     same_team=same_team[(same_team.boxscore_href+'_'+same_team.college_href).isin(boxscoresteam)]
     
     same_team['is_player']=0
-    same_team['is_player'][same_team.player_href==college_id]=1
+    same_team.loc[same_team.player_href==college_id,'is_player']=1
+    #same_team['is_player'][same_team.player_href==college_id]=1
     opp_team['is_player']=0
     
     same_team['na_player']=0
@@ -110,14 +123,17 @@ def make_x_data_tensor(player_id):
     
     
     boxscores.sort(reverse=True)
+    boxscoresteam.sort(reverse=True)
     
     for i in range(x_data.shape[0]):
         
         if i < len(boxscores):
+            if debug_flag=='y':
+                print(i)
         
             ### same team logic 
             same_team_temp=same_team.loc[same_team.boxscore_href==boxscores[i],:]
-            same_team_temp=np.array(same_team_temp.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])
+            same_team_temp=np.array(same_team_temp.loc[:,x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game']])            
             
             """ put into x_data tensor """
             if same_team_temp.shape[0] < x_data.shape[2]:
@@ -129,7 +145,9 @@ def make_x_data_tensor(player_id):
                 same_team_temp=same_team_temp[0:x_data.shape[2],:]
                 np.random.shuffle(same_team_temp)
                         
-            x_data[i][0]=torch.from_numpy(same_team_temp.astype('float64'))        
+            x_data[i][0]=torch.from_numpy(same_team_temp.astype('float64'))  
+            if debug_flag=='y':
+                print(torch.isnan(x_data[i][0]).any())
             
             ### opp team logic 
             opp_team_temp=opp_team.loc[opp_team.boxscore_href==boxscores[i],:]
@@ -141,11 +159,12 @@ def make_x_data_tensor(player_id):
                 opp_team_temp=np.concatenate((opp_team_temp,fill),axis=0)
                 np.random.shuffle(opp_team_temp)                
             else:
-                opp_team_temp=opp_team[0:x_data.shape[2],:]
+                opp_team_temp=opp_team_temp[0:x_data.shape[2],:]
                 np.random.shuffle(opp_team_temp)                
                         
-            x_data[i][1]=torch.from_numpy(opp_team_temp.astype('float64'))        
-            
+            x_data[i][1]=torch.from_numpy(opp_team_temp.astype('float64'))  
+            if debug_flag=='y':
+                print(torch.isnan(x_data[i][1]).any())
             
         else:
             same_team_temp=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
@@ -165,13 +184,39 @@ def make_x_data_tensor(player_id):
 
 
 ### model training 
-samples=samples.sample(frac=1)
-train_ids=samples.college_id[samples.first_year!=2021]
-test_ids=samples.college_id[samples.first_year==2021]
+import nn_model
+nn=nn_model.NeuralNetwork(4,4,4,16)
+loss = torch.nn.MSELoss()
+optimizer = torch.optim.Adam(nn.parameters(), lr=1e-3)
 
-nn=nn_model.NeuralNetwork(3,5,8,16)
+iters=100000
+for k in range(iters):
+    samples=samples.sample(frac=1)
+    train_ids=list(samples.college_id[samples.first_year!=2021])
+    test_ids=list(samples.college_id[samples.first_year==2021])
+    nn.train()
+    
+    for j in range(len(train_ids)):
+        x_train=make_x_data_tensor(train_ids[j])
+        y_train=torch.tensor(samples.loc[samples.college_id==train_ids[j],cols+['snapcounts']].values)
+        y_train=y_train.flatten().float()
+        
+        ## predict
+        x_vals=nn(x_train).float()
+        loss_val=loss(x_vals,y_train)
+        
+        ## run sgd
+        optimizer.zero_grad()
+        loss_val.backward()
+        optimizer.step()
+        
+        print(train_ids[j])
+        print(loss_val)
+        print(torch.isnan(x_train).any())
+        #print(nn.layer5.weight)
 
 
+    
 
 
 
