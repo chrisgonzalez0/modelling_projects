@@ -204,7 +204,7 @@ for j in range(len(s)):
 
 ### model training 
 import nn_model
-nn=nn_model.NeuralNetwork(4,4,4,6)
+nn=nn_model.NeuralNetwork(4,4,4,10)
 loss = torch.nn.MSELoss()
 optimizer = torch.optim.SGD(nn.parameters(), lr=1e-4,momentum=0.9,nesterov=True)
 

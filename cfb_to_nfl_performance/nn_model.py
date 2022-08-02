@@ -23,29 +23,35 @@ class NeuralNetwork(nn.Module):
         
         self.flatten = nn.Flatten()
         self.activation=nn.LogSoftmax(dim=3)
+        self.dropout=nn.Dropout(0.2)
         
         self.layer5=nn.Linear(games_out*opps_out*rows_out*cols_out , 43)
         
     def forward(self, x):
         x=self.layer1(x)
         x=self.activation(x)
+        x=self.dropout(x)
         
         x=x.reshape( [ x.shape[0],x.shape[1],x.shape[3],x.shape[2] ] )
         x=self.layer2(x)
         x=self.activation(x)
+        x=self.dropout(x)
         
         x=x.reshape( [ x.shape[0],x.shape[3],x.shape[2],x.shape[1] ] )
         x=self.layer3(x)
         x=self.activation(x)
+        x=self.dropout(x)
         
         x=x.reshape( [ x.shape[3],x.shape[1],x.shape[2],x.shape[0] ] )        
         x=self.layer4(x)
         x=self.activation(x)
+        x=self.dropout(x)
         #print(x.shape)
         
         x=x.flatten()
         #print(x.shape)
         x=self.layer5(x)
+        x=self.dropout(x)
         
         return x
         
