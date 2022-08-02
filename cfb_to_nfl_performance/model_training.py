@@ -206,7 +206,7 @@ for j in range(len(s)):
 import nn_model
 nn=nn_model.NeuralNetwork(4,4,4,10)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-4,momentum=0.9,nesterov=True)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-5,momentum=0.9,nesterov=True)
 
 iters=1000
 for k in range(iters):
@@ -251,7 +251,7 @@ for k in range(iters):
         
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
     
-    if j % 50 ==0:
+    if k % 50 ==0:
         """ evaluate test data sets """    
         losses_test=[]
         loss_eval = torch.nn.MSELoss()
