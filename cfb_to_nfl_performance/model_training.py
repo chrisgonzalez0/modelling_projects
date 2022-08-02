@@ -129,7 +129,7 @@ def make_x_data_tensor(player_id,debug_flag=''):
     
     
     boxscores.sort(reverse=True)
-    boxscoresteam.sort(reverse=True)
+    #boxscoresteam.sort(reverse=True)
     
     for i in range(x_data.shape[0]):
         
@@ -189,13 +189,26 @@ def make_x_data_tensor(player_id,debug_flag=''):
     return x_data
 
 
+### save tensors 
+
+s=list(samples.college_id)
+for j in range(len(s)):
+    x_train=make_x_data_tensor(s[j])
+    y_train=torch.tensor(samples.loc[samples.college_id==s[j],cols+['snapcounts']].values)
+    y_train=y_train.flatten().float()
+    
+    torch.save(x_train, 'saved_tensors/x_'+s[j]+'.pt')
+    torch.save(y_train, 'saved_tensors/y_'+s[j]+'.pt')
+#################
+
+
 ### model training 
 import nn_model
-nn=nn_model.NeuralNetwork(6,4,8,16)
+nn=nn_model.NeuralNetwork(4,4,4,6)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-5)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-4,momentum=0.9,nesterov=True)
 
-iters=100000
+iters=1000
 for k in range(iters):
     loss_list=[]
     
@@ -205,9 +218,23 @@ for k in range(iters):
     nn.train()
     
     for j in range(len(train_ids)):
+        """
         x_train=make_x_data_tensor(train_ids[j])
         y_train=torch.tensor(samples.loc[samples.college_id==train_ids[j],cols+['snapcounts']].values)
         y_train=y_train.flatten().float()
+        """
+        x_train=torch.load('saved_tensors/x_'+train_ids[j]+'.pt')
+        y_train=torch.load('saved_tensors/y_'+train_ids[j]+'.pt')
+        
+        ### shuffle rows
+        x_temp=x_train[:,0,:,:]
+        x_temp=x_temp[:,torch.randperm(x_train.size(2)),:]
+        x_train[:,0,:,:]=x_temp
+        
+        x_temp=x_train[:,1,:,:]
+        x_temp=x_temp[:,torch.randperm(x_train.size(2)),:]
+        x_train[:,1,:,:]=x_temp
+        ##########
         
         ## predict
         x_vals=nn(x_train).float()
@@ -220,13 +247,24 @@ for k in range(iters):
         
         #print(train_ids[j])
         #print(loss_val)
-        #print(torch.isnan(x_train).any())
-        #print(nn.layer5.weight)
         loss_list.append(loss_val.item())
         
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
-
     
+    if j % 50 ==0:
+        """ evaluate test data sets """    
+        losses_test=[]
+        loss_eval = torch.nn.MSELoss()
+        nn.eval()
+        for t in range(len(test_ids)):
+            x_test=torch.load('saved_tensors/x_'+test_ids[t]+'.pt')
+            y_test=torch.load('saved_tensors/y_'+test_ids[t]+'.pt')
+            
+            x_vals_test=nn(x_test).float()
+            loss_val_eval=loss_eval(x_vals,y_test)
+            losses_test.append(loss_val_eval.item())
+        print('TEST DATA SET LOSS:')
+        print(np.mean(losses_test))
 
 
 
