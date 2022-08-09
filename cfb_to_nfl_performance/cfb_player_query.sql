@@ -52,7 +52,20 @@ select
 	coalesce(stats."Fumbles_FR",0) "Fumbles_FR",
 	coalesce(stats."Fumbles_Yds",0) "Fumbles_Yds",
 	coalesce(stats."Fumbles_TD",0) "Fumbles_TD",
-	coalesce(stats."Fumbles_FF",0) "Fumbles_FF"
+	coalesce(stats."Fumbles_FF",0) "Fumbles_FF",
+	coalesce(stats."Kick Ret_Ret",0) "Kick Ret_Ret",
+	coalesce(stats."Kick Ret_Yds",0) "Kick Ret_Yds",
+	coalesce(stats."Kick Ret_TD",0) "Kick Ret_TD",
+	coalesce(stats."Punt Ret_Ret",0) "Punt Ret_Ret",
+	coalesce(stats."Punt Ret_Yds",0) "Punt Ret_Yds",
+	coalesce(stats."Punt Ret_TD",0) "Punt Ret_TD",
+	coalesce(stats."Kicking_XPM",0) "Kicking_XPM",
+	coalesce(stats."Kicking_XPA",0) "Kicking_XPA",
+	coalesce(stats."Kicking_FGM",0) "Kicking_FGM",
+	coalesce(stats."Kicking_FGA",0) "Kicking_FGA",
+	coalesce(stats."Punting_Punts",0) "Punting_Punts",
+	coalesce(stats."Punting_Yds",0) "Punting_Yds"
+	
 into cfb_player_query_table	
 from cfb_schedule cs 
 left join cfb_conference_teams cct on cct."year" =cs."year" and cct.college_href =cs.college_href
@@ -85,7 +98,19 @@ select
 	cd."Fumbles_FR",
 	cd."Fumbles_Yds",
 	cd."Fumbles_TD",
-	cd."Fumbles_FF"
+	cd."Fumbles_FF",
+	ckr."Kick Ret_Ret",
+	ckr."Kick Ret_Yds",
+	ckr."Kick Ret_TD",
+	ckr."Punt Ret_Ret",
+	ckr."Punt Ret_Yds",
+	ckr."Punt Ret_TD",
+	ck."Kicking_XPM",
+	ck."Kicking_XPA",
+	ck."Kicking_FGM",
+	ck."Kicking_FGA",	
+	ck."Punting_Punts",
+	ck."Punting_Yds"
 from cfb_passing cp 
 full outer join cfb_rush_rec crr on crr.player_href=cp.player_href and crr.boxscore_href=cp.boxscore_href 
 full outer join cfb_defense cd on cd.player_href=coalesce(crr.player_href,cp.player_href) and cd.boxscore_href=coalesce(crr.boxscore_href,cp.boxscore_href) 
