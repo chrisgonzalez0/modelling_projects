@@ -162,8 +162,8 @@ def make_x_data_tensor(player_id,debug_flag=''):
     own_class_pos_data=torch.zeros([48,130,39])
     opp_class_pos_data=torch.zeros([48,130,39])
         
-    college_id=player_id
-    #college_id='marcus-williams-9'
+    #college_id=player_id
+    college_id='greg-newsome-ii-1'
         
     # example
     boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
@@ -223,7 +223,7 @@ def make_x_data_tensor(player_id,debug_flag=''):
     temp=torch.from_numpy(temp.astype('float64'))  
             
     if temp.shape[0] > 48:
-        own_team_sched[0:48]=temp
+        own_team_sched[0:48]=temp[0:48]
     else:
         own_team_sched[0:temp.shape[0]]=temp
     
@@ -240,30 +240,132 @@ def make_x_data_tensor(player_id,debug_flag=''):
     temp=torch.from_numpy(temp.astype('float64'))  
             
     if temp.shape[0] > 48:
-        opp_team_sched[0:48]=temp
+        opp_team_sched[0:48]=temp[0:48]
     else:
         opp_team_sched[0:temp.shape[0]]=temp
     ###################################            
  
     return player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched
  
+
+### save tensors 
+s=list(samples.college_id)
+for j in range(len(s)):
+    print(j)
+    if s[j]=='blake-lynch-1':
+        continue
+    player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched=make_x_data_tensor(s[j])
+    y_train=torch.tensor(samples.loc[samples.college_id==s[j],cols+['snapcounts']].values)
+    y_train=y_train.flatten().float()
     
- 
-player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched = make_x_data_tensor(player_id='eric-reid-1')
+    torch.save(player_x_data, 'saved_tensors_model2/x_player_data_'+s[j]+'.pt')
+    torch.save(own_class_pos_data, 'saved_tensors_model2/x_own_class_pos_'+s[j]+'.pt')
+    torch.save(opp_class_pos_data, 'saved_tensors_model2/x_opp_class_pos_'+s[j]+'.pt')
+    torch.save(own_team_sched, 'saved_tensors_model2/x_own_team_sched_'+s[j]+'.pt')
+    torch.save(opp_team_sched, 'saved_tensors_model2/x_opp_team_sched_'+s[j]+'.pt')    
+    torch.save(y_train, 'saved_tensors_model2/y_'+s[j]+'.pt')
+    
+##player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched = make_x_data_tensor(player_id='eric-reid-1')
+###################################           
 
 
 
+### model training 
+samples=samples.loc[samples.college_id!='blake-lynch-1',:]
 
+import nn_model
+nn=nn_model.NeuralNetwork_v2(16,16,16)
+loss = torch.nn.MSELoss()
+optimizer = torch.optim.Adam(nn.parameters(), lr=1e-5)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
 
-['Passing_Att',
-            'Passing_Cmp', 'Passing_Yds', 'Passing_TD', 'Passing_Int',
-            'Rushing_Att', 'Rushing_Yds', 'Rushing_TD', 'Receiving_Rec',
-            'Receiving_Yds', 'Receiving_TD', 'Tackles_Solo', 'Tackles_Ast',
-            'Tackles_Tot', 'Tackles_Loss', 'Tackles_Sk', 'Def Int_Int',
-            'Def Int_Yds', 'Def Int_TD', 'Def Int_PD', 'Fumbles_FR', 
-            'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF','height_inches','weight']
+iters=500
+for k in range(iters):
+    loss_list=[]
+    
+    samples=samples.sample(frac=1)
+    train_ids=list(samples.college_id[samples.first_year!=2021])
+    test_ids=list(samples.college_id[samples.first_year==2021])
+    nn.train()
+    
+    for j in range(len(train_ids)):
+        
+        player_x_data=torch.load('saved_tensors_model2/x_player_data_'+train_ids[j]+'.pt')
+        own_class_pos_data=torch.load('saved_tensors_model2/x_own_class_pos_'+train_ids[j]+'.pt')
+        opp_class_pos_data=torch.load('saved_tensors_model2/x_opp_class_pos_'+train_ids[j]+'.pt')
+        own_team_sched=torch.load('saved_tensors_model2/x_own_team_sched_'+train_ids[j]+'.pt')
+        opp_team_sched=torch.load('saved_tensors_model2/x_opp_team_sched_'+train_ids[j]+'.pt')
+        y_train=torch.load('saved_tensors_model2/y_'+train_ids[j]+'.pt')
+        
+        player_x_data=player_x_data.float()
+        own_class_pos_data=own_class_pos_data.float()
+        opp_class_pos_data=opp_class_pos_data.float()
+        own_team_sched=own_team_sched.float()
+        opp_team_sched=opp_team_sched.float()
+        
+        ## predict
+        x_vals=nn(player_x_data,own_class_pos_data,opp_class_pos_data,own_team_sched,opp_team_sched).float()
+        loss_val=loss(x_vals,y_train)
+        
+        ## run sgd
+        optimizer.zero_grad()
+        loss_val.backward()
+        optimizer.step()
+        
+        #print(train_ids[j])
+        #print(loss_val)
+        loss_list.append(loss_val.item())
+        
+    print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
+    scheduler.step()
+    
+    if k % 10 ==0:
+        compare=pd.DataFrame(columns=cols+['snapcounts','player_id','type'])
+        
+        """ evaluate test data sets """    
+        losses_test=[]
+        loss_eval = torch.nn.MSELoss()
+        nn.eval()
+        for t in range(len(test_ids)):
+            x_test=torch.load('saved_tensors/x_'+test_ids[t]+'.pt')
+            y_test=torch.load('saved_tensors/y_'+test_ids[t]+'.pt')
+            
+            ### shuffle rows
+            x_temp=x_test[:,0,:,:]
+            for n in range(x_temp.shape[0]):
+                x_temp2=x_temp[n,:,:].detach().numpy()
+                x_temp2=torch.tensor(x_temp2[x_temp2[:,86].argsort()])
+                x_temp[n,:,:]=x_temp2
+            x_test[:,0,:,:]=x_temp
+            
+            x_temp=x_test[:,0,0:179,:]
+            x_temp=x_temp[:,torch.randperm(x_test.size(2)-1),:]        
+            x_test[:,0,0:179,:]=x_temp
 
-by_game_data
-
+            
+            x_vals_test=nn(x_test).float()
+            loss_val_eval=loss_eval(x_vals_test,y_test)
+            losses_test.append(loss_val_eval.item())
+            
+            ## put together preds/actuals
+            gg=x_vals_test.detach().numpy()
+            gg=gg.reshape(-1, len(gg))
+            x_pred=pd.DataFrame(gg,columns=cols+['snapcounts'])
+            x_pred=x_pred*y_stds+y_means            
+            x_pred['player_id']=test_ids[t]
+            x_pred['type']='prediction'
+            
+            gg=y_test.detach().numpy()
+            gg=gg.reshape(-1, len(gg))
+            x_actual=pd.DataFrame(gg,columns=cols+['snapcounts'])
+            x_actual=x_actual*y_stds+y_means            
+            x_actual['player_id']=test_ids[t]
+            x_actual['type']='actual'
+            
+            compare=pd.concat([compare,x_pred,x_actual])
+            #############################
+                        
+        print('TEST DATA SET LOSS:')
+        print(np.mean(losses_test))
 
 

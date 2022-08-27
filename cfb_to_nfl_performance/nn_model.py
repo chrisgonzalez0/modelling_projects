@@ -23,7 +23,7 @@ class NeuralNetwork(nn.Module):
         
         self.flatten = nn.Flatten()
         self.activation=nn.LogSoftmax(dim=3)
-        self.dropout=nn.Dropout(0.2)
+        self.dropout=nn.Dropout(0.1)
         
         self.layer5=nn.Linear(games_out*opps_out*rows_out*cols_out , 43)
         
@@ -62,3 +62,56 @@ layer3=nn.Linear(2, 5)
 layer4=nn.Linear(48, 3)
 activation=nn.Softmax()
 """
+
+
+class NeuralNetwork_v2(nn.Module):
+    def __init__(self,player_out,class_pos_out,team_sched_out):
+        super(NeuralNetwork_v2, self).__init__()
+        
+        self.player_layer1=nn.Linear(73, player_out)
+        self.class_pos_layer1=nn.Linear(39, class_pos_out)
+        self.team_sched_layer1=nn.Linear(27, team_sched_out)
+        
+        
+        self.flatten = nn.Flatten()
+        self.activation=nn.LogSoftmax(dim=1)
+        self.dropout=nn.Dropout(0.1)
+        
+        self.layer_final=nn.Linear( (player_out*48)+ (class_pos_out*48*130)*2 + (team_sched_out*48)*2 , 43)
+
+        
+    def forward(self, player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched):
+        
+        player=self.player_layer1(player_x_data)
+        player=self.activation(player)
+        player=self.dropout(player)
+        player=player.flatten()
+        
+        own_class_pos=self.class_pos_layer1(own_class_pos_data)
+        own_class_pos=self.activation(own_class_pos)
+        own_class_pos=self.dropout(own_class_pos)
+        own_class_pos=own_class_pos.flatten()
+        
+        opp_class_pos=self.class_pos_layer1(opp_class_pos_data)
+        opp_class_pos=self.activation(opp_class_pos)
+        opp_class_pos=self.dropout(opp_class_pos)
+        opp_class_pos=opp_class_pos.flatten()
+
+        own_team=self.team_sched_layer1(own_team_sched)
+        own_team=self.activation(own_team)
+        own_team=self.dropout(own_team)
+        own_team=own_team.flatten()
+        
+        opp_team=self.team_sched_layer1(opp_team_sched)
+        opp_team=self.activation(opp_team)
+        opp_team=self.dropout(opp_team)
+        opp_team=opp_team.flatten()
+
+        result=self.layer_final( torch.cat( (player,own_class_pos,opp_class_pos,own_team,opp_team)  )  )
+        
+        return result
+
+
+
+
+
