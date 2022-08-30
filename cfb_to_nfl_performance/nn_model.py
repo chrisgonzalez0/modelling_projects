@@ -74,7 +74,7 @@ class NeuralNetwork_v2(nn.Module):
         
         
         self.flatten = nn.Flatten()
-        self.activation=nn.LogSoftmax(dim=1)
+        self.activation=nn.LogSoftmax(dim=0)
         self.dropout=nn.Dropout(0.1)
         
         self.layer_final=nn.Linear( (player_out*48)+ (class_pos_out*48*130)*2 + (team_sched_out*48)*2 , 43)

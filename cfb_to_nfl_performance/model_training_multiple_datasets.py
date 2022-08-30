@@ -130,7 +130,13 @@ for i in range(class_pos.shape[0]):
         by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols]= (by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols] - temp_mean[temp_cols])/temp_std[temp_cols]
     
 
+means=samp.loc[:,x_numerical_cols].mean(axis=0)
+stds=samp.loc[:,x_numerical_cols].std(axis=0)
+samp.loc[:,x_numerical_cols]=(samp.loc[:,x_numerical_cols]-means)/stds
+
+
 """ player mean std by pos/class"""
+"""
 player_data_mean=samp.loc[:,['Class','Pos']+x_numerical_cols].groupby(by=['Class','Pos'],as_index=False).mean() 
 player_data_std=samp.loc[:,['Class','Pos']+x_numerical_cols].groupby(by=['Class','Pos'],as_index=False).std() 
 ## need a for loop to standardize
@@ -151,6 +157,7 @@ for i in range(class_pos.shape[0]):
         continue
     else:
         samp.loc[(temp_class==samp.Class) & (temp_pos==samp.Pos) ,temp_cols]= (samp.loc[(temp_class==samp.Class) & (temp_pos==samp.Pos) ,temp_cols] - temp_mean[temp_cols])/temp_std[temp_cols]
+"""
 
 view_data=samp.iloc[1:1000,:]
 
@@ -162,8 +169,8 @@ def make_x_data_tensor(player_id,debug_flag=''):
     own_class_pos_data=torch.zeros([48,130,39])
     opp_class_pos_data=torch.zeros([48,130,39])
         
-    #college_id=player_id
-    college_id='greg-newsome-ii-1'
+    college_id=player_id
+    #college_id='greg-newsome-ii-1'
         
     # example
     boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
@@ -276,8 +283,8 @@ samples=samples.loc[samples.college_id!='blake-lynch-1',:]
 import nn_model
 nn=nn_model.NeuralNetwork_v2(16,16,16)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(nn.parameters(), lr=1e-5)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
+optimizer = torch.optim.Adam(nn.parameters(), lr=1e-7)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.9)
 
 iters=500
 for k in range(iters):
@@ -319,6 +326,10 @@ for k in range(iters):
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
     scheduler.step()
     
+    
+    
+    
+    
     if k % 10 ==0:
         compare=pd.DataFrame(columns=cols+['snapcounts','player_id','type'])
         
@@ -327,23 +338,21 @@ for k in range(iters):
         loss_eval = torch.nn.MSELoss()
         nn.eval()
         for t in range(len(test_ids)):
-            x_test=torch.load('saved_tensors/x_'+test_ids[t]+'.pt')
-            y_test=torch.load('saved_tensors/y_'+test_ids[t]+'.pt')
             
-            ### shuffle rows
-            x_temp=x_test[:,0,:,:]
-            for n in range(x_temp.shape[0]):
-                x_temp2=x_temp[n,:,:].detach().numpy()
-                x_temp2=torch.tensor(x_temp2[x_temp2[:,86].argsort()])
-                x_temp[n,:,:]=x_temp2
-            x_test[:,0,:,:]=x_temp
+            player_x_data_test=torch.load('saved_tensors_model2/x_player_data_'+test_ids[t]+'.pt')
+            own_class_pos_data_test=torch.load('saved_tensors_model2/x_own_class_pos_'+test_ids[t]+'.pt')
+            opp_class_pos_data_test=torch.load('saved_tensors_model2/x_opp_class_pos_'+test_ids[t]+'.pt')
+            own_team_sched_test=torch.load('saved_tensors_model2/x_own_team_sched_'+test_ids[t]+'.pt')
+            opp_team_sched_test=torch.load('saved_tensors_model2/x_opp_team_sched_'+test_ids[t]+'.pt')
+            y_test=torch.load('saved_tensors_model2/y_'+test_ids[t]+'.pt')
             
-            x_temp=x_test[:,0,0:179,:]
-            x_temp=x_temp[:,torch.randperm(x_test.size(2)-1),:]        
-            x_test[:,0,0:179,:]=x_temp
+            player_x_data_test=player_x_data_test.float()
+            own_class_pos_data_test=own_class_pos_data_test.float()
+            opp_class_pos_data_test=opp_class_pos_data_test.float()
+            own_team_sched_test=own_team_sched_test.float()
+            opp_team_sched_test=opp_team_sched_test.float()
 
-            
-            x_vals_test=nn(x_test).float()
+            x_vals_test=nn(player_x_data_test,own_class_pos_data_test,opp_class_pos_data_test,own_team_sched_test,opp_team_sched_test).float()
             loss_val_eval=loss_eval(x_vals_test,y_test)
             losses_test.append(loss_val_eval.item())
             
@@ -351,14 +360,15 @@ for k in range(iters):
             gg=x_vals_test.detach().numpy()
             gg=gg.reshape(-1, len(gg))
             x_pred=pd.DataFrame(gg,columns=cols+['snapcounts'])
-            x_pred=x_pred*y_stds+y_means            
+            
+            #x_pred=x_pred*y_stds+y_means            
             x_pred['player_id']=test_ids[t]
             x_pred['type']='prediction'
             
             gg=y_test.detach().numpy()
             gg=gg.reshape(-1, len(gg))
             x_actual=pd.DataFrame(gg,columns=cols+['snapcounts'])
-            x_actual=x_actual*y_stds+y_means            
+            #x_actual=x_actual*y_stds+y_means            
             x_actual['player_id']=test_ids[t]
             x_actual['type']='actual'
             
