@@ -171,12 +171,14 @@ def make_x_data_tensor(player_id,debug_flag=''):
         
     college_id=player_id
     #college_id='greg-newsome-ii-1'
+    print(college_id)
         
     # example
     boxscores=list(samp.loc[samp.player_href==college_id,'boxscore_href'])
     boxscoresteam=list(samp.loc[samp.player_href==college_id,'boxscore_href']+'_'+samp.loc[ samp.player_href==college_id,'college_href'])
     boxscores.sort(reverse=True)
     boxscoresteam.sort(reverse=True)
+    print(boxscores)
 
     ## individual player data per game
     player_x_data=samp.loc[samp.player_href==college_id,]
@@ -257,8 +259,14 @@ def make_x_data_tensor(player_id,debug_flag=''):
 
 ### save tensors 
 s=list(samples.college_id)
+exclude=[]
 for j in range(len(s)):
     print(j)
+    boxscores=list(samp.loc[samp.player_href==s[j],'boxscore_href'])
+    if len(boxscores)==0:
+        exclude.append(s[j])
+        continue
+    
     if s[j]=='blake-lynch-1':
         continue
     player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched=make_x_data_tensor(s[j])
@@ -279,12 +287,17 @@ for j in range(len(s)):
 
 ### model training 
 samples=samples.loc[samples.college_id!='blake-lynch-1',:]
+samples=samples.loc[~samples.college_id.isin(exclude),:]
 
 import nn_model
-nn=nn_model.NeuralNetwork_v2(16,16,16)
+nn=nn_model.NeuralNetwork_v2(64,32,16)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(nn.parameters(), lr=1e-7)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.9)
+
+#loss = torch.nn.GaussianNLLLoss()
+
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-7)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.9)
+#scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',patience=5)
 
 iters=500
 for k in range(iters):
@@ -326,16 +339,16 @@ for k in range(iters):
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
     scheduler.step()
     
-    
-    
-    
-    
-    if k % 10 ==0:
+        
+    if (k+1) % 10 ==0:
         compare=pd.DataFrame(columns=cols+['snapcounts','player_id','type'])
         
         """ evaluate test data sets """    
         losses_test=[]
+        
         loss_eval = torch.nn.MSELoss()
+        #loss_eval = torch.nn.GaussianNLLLoss()
+        
         nn.eval()
         for t in range(len(test_ids)):
             
@@ -361,14 +374,15 @@ for k in range(iters):
             gg=gg.reshape(-1, len(gg))
             x_pred=pd.DataFrame(gg,columns=cols+['snapcounts'])
             
-            #x_pred=x_pred*y_stds+y_means            
+            x_pred=x_pred*y_stds+y_means            
             x_pred['player_id']=test_ids[t]
             x_pred['type']='prediction'
             
             gg=y_test.detach().numpy()
             gg=gg.reshape(-1, len(gg))
             x_actual=pd.DataFrame(gg,columns=cols+['snapcounts'])
-            #x_actual=x_actual*y_stds+y_means            
+            
+            x_actual=x_actual*y_stds+y_means            
             x_actual['player_id']=test_ids[t]
             x_actual['type']='actual'
             

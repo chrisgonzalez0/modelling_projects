@@ -1,4 +1,4 @@
-drop table if exists nfl_player_snaps_table;
+drop table if exists nfl_player_snaps_table_yr1;
 
 with sched as (
 	select 
@@ -156,7 +156,7 @@ base_stats as (
 	) boxscores on boxscores.player_id=sc.player_id and boxscores.boxscore_id=sc.boxscore_id
 	left join player_keys pk on pk.player_id=sc.player_id
 	where 
-		ntr.yrs in ('Rook','1','2')
+		ntr.yrs in ('Rook')
 		
 		and sc.player_id in (select distinct ntr.player_id 
 		                     from nfl_team_rosters ntr 
@@ -216,7 +216,7 @@ select
 	sum(bs."Punting_Pnt") "Punting_Pnt",
 	sum(bs."Punting_Yds") "Punting_Yds"		
 
-into nfl_player_snaps_table	
+into nfl_player_snaps_table_yr1	
 from base_stats bs
 left join (
 	select 
