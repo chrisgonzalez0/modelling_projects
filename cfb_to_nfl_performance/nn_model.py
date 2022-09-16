@@ -64,6 +64,7 @@ activation=nn.Softmax()
 """
 
 
+
 class NeuralNetwork_v2(nn.Module):
     def __init__(self,player_out,class_pos_out,team_sched_out):
         super(NeuralNetwork_v2, self).__init__()
