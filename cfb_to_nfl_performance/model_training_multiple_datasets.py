@@ -283,19 +283,31 @@ for j in range(len(s)):
 ##player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched = make_x_data_tensor(player_id='eric-reid-1')
 ###################################           
 
+samp.groupby('Pos').count()
+samp.groupby('Class').count()
 
 
+#from torch.utils.tensorboard import SummaryWriter
+
+
+
+    
+    #writer.add_scalar('Loss/test', np.random.random(), n_iter)
+    
+    
 ### model training 
+
 samples=samples.loc[samples.college_id!='blake-lynch-1',:]
 samples=samples.loc[~samples.college_id.isin(exclude),:]
 
 import nn_model
+#writer = SummaryWriter()
 nn=nn_model.NeuralNetwork_v2(64,32,16)
 loss = torch.nn.MSELoss()
 
 #loss = torch.nn.GaussianNLLLoss()
 
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-7)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-7,nesterov=True,momentum=0.5)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.9)
 #scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',patience=5)
 
@@ -337,10 +349,13 @@ for k in range(iters):
         loss_list.append(loss_val.item())
         
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
+    print( samples.loc[samples.college_id==train_ids[loss_list.index(max(loss_list))],:] )    
+    #writer.add_scalar('Loss/train', np.mean(loss_list), k)
     scheduler.step()
     
         
     if (k+1) % 10 ==0:
+        torch.save(nn,'nn_model.pth')
         compare=pd.DataFrame(columns=cols+['snapcounts','player_id','type'])
         
         """ evaluate test data sets """    
