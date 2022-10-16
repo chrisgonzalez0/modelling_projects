@@ -79,7 +79,8 @@ class NeuralNetwork_v2(nn.Module):
         self.activation1=nn.LogSoftmax(dim=1)
         self.dropout=nn.Dropout(0.1)
         
-        self.layer_final=nn.Linear( (player_out*48)+ (class_pos_out*48*130)*2 + (team_sched_out*48)*2 , 43)
+        #self.layer_final=nn.Linear( (player_out*48)+ (class_pos_out*48*130)*2 + (team_sched_out*48)*2 , 43)
+        self.layer_final=nn.Linear( (player_out)+ (class_pos_out)*2 + (team_sched_out)*2 , 43)
 
         
     def forward(self, player_x_data, own_class_pos_data, opp_class_pos_data, own_team_sched, opp_team_sched):
@@ -87,29 +88,36 @@ class NeuralNetwork_v2(nn.Module):
         player=self.player_layer1(player_x_data)
         player=self.activation1(player)
         player=self.dropout(player)
+        player=torch.mean(player,dim=0)
         player=player.flatten()
         
         own_class_pos=self.class_pos_layer1(own_class_pos_data)
         own_class_pos=self.activation2(own_class_pos)
         own_class_pos=self.dropout(own_class_pos)
+        own_class_pos=torch.mean(own_class_pos,dim=[0,1])
         own_class_pos=own_class_pos.flatten()
         
         opp_class_pos=self.class_pos_layer1(opp_class_pos_data)
         opp_class_pos=self.activation2(opp_class_pos)
         opp_class_pos=self.dropout(opp_class_pos)
+        opp_class_pos=torch.mean(opp_class_pos,dim=[0,1])
         opp_class_pos=opp_class_pos.flatten()
+        
 
         own_team=self.team_sched_layer1(own_team_sched)
         own_team=self.activation1(own_team)
         own_team=self.dropout(own_team)
+        own_team=torch.mean(own_team,dim=0)
         own_team=own_team.flatten()
         
         opp_team=self.team_sched_layer1(opp_team_sched)
         opp_team=self.activation1(opp_team)
         opp_team=self.dropout(opp_team)
+        opp_team=torch.mean(opp_team,dim=0)
         opp_team=opp_team.flatten()
 
         result=self.layer_final( torch.cat( (player,own_class_pos,opp_class_pos,own_team,opp_team)  )  )
+        result=torch.nn.functional.relu(result)
         
         return result
 

@@ -41,9 +41,13 @@ del(temp)
 samples.loc[:,cols]=samples.loc[:,cols].div(samples.snapcounts,axis=0)
 samples.loc[:,'snapcounts']=samples.loc[:,'snapcounts'].div(samples.years_played,axis=0)
 
+
+
 """ normalize maybe? """
-y_means=samples.loc[:,cols+['snapcounts']].mean(axis=0)
-y_stds=samples.loc[:,cols+['snapcounts']].std(axis=0)
+y_means=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).mean(skipna=True)
+y_stds=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).std(skipna=True)
+#y_means=samples.loc[:,cols+['snapcounts']].mean(axis=0)
+#y_stds=samples.loc[:,cols+['snapcounts']].std(axis=0)
 samples.loc[:,cols+['snapcounts']]=( samples.loc[:,cols+['snapcounts']] - y_means )/y_stds
 
 ###################################
@@ -103,35 +107,42 @@ x_numerical_cols=['Passing_Att',
             'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF','Kick Ret_Ret',
             'Kick Ret_Yds', 'Kick Ret_TD', 'Punt Ret_Ret', 'Punt Ret_Yds',
             'Punt Ret_TD', 'Kicking_XPM', 'Kicking_XPA', 'Kicking_FGM',
-            'Kicking_FGA', 'Punting_Punts', 'Punting_Yds','height_inches','weight','height_weight_na']
+            'Kicking_FGA', 'Punting_Punts', 'Punting_Yds','height_inches','weight']
 
 
-by_game_data=samp.loc[:,['Class','Pos','boxscore_href','college_href']+x_numerical_cols].groupby(by=['Class','Pos','boxscore_href','college_href'],as_index=False).sum() 
-by_game_data_mean=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].groupby(by=['Class','Pos'],as_index=False).mean() 
-by_game_data_std=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].groupby(by=['Class','Pos'],as_index=False).std() 
+by_game_data=samp.loc[:,['Class','Pos','boxscore_href','college_href']+x_numerical_cols+['height_weight_na'] ].groupby(by=['Class','Pos','boxscore_href','college_href'],as_index=False).sum() 
+by_game_data_counts=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].replace(0, np.nan).groupby(by=['Class','Pos'],as_index=False).count()
+by_game_data_mean=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].replace(0, np.nan).groupby(by=['Class','Pos'],as_index=False).mean()
+by_game_data_std=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].replace(0, np.nan).groupby(by=['Class','Pos'],as_index=False).std()
+#by_game_data_mean2=by_game_data.loc[:,['Class','Pos']+x_numerical_cols].groupby(by=['Class','Pos'],as_index=False).mean()
+
 view_bygame_data=by_game_data.loc[by_game_data.boxscore_href=='2021-01-11-alabama',:]
 ## need a for loop to standardize
 for i in range(class_pos.shape[0]):
+    print(i)
     temp_class=class_pos.Class[i]
     temp_pos=class_pos.Pos[i]
-    temp_std=by_game_data_std.loc[(temp_class==by_game_data_std.Class) & (temp_pos==by_game_data_std.Pos) , :]   
-    temp_std=temp_std.loc[:,(temp_std!=0).any(axis=0)]
+
+    temp_cols_all=set(by_game_data_counts.columns.to_list()) - set(['Class','Pos'])
+    temp_counts=by_game_data_counts.loc[(temp_class==by_game_data_std.Class) & (temp_pos==by_game_data_std.Pos) , temp_cols_all]
+    temp_cols=temp_counts.loc[:,(temp_counts>100).any(axis=0)].columns
+    
+    temp_std=by_game_data_std.loc[(temp_class==by_game_data_std.Class) & (temp_pos==by_game_data_std.Pos) , temp_cols]   
     temp_std=temp_std.squeeze()
     
-    temp_mean=by_game_data_mean.loc[(temp_class==by_game_data_mean.Class) & (temp_pos==by_game_data_mean.Pos) , :]       
+    temp_mean=by_game_data_mean.loc[(temp_class==by_game_data_mean.Class) & (temp_pos==by_game_data_mean.Pos) , temp_cols]
     temp_mean=temp_mean.squeeze()
         
-    temp_cols=temp_std.index
-    temp_cols=temp_cols[temp_cols!='Class']
-    temp_cols=temp_cols[temp_cols!='Pos']
-    if len(temp_cols)==0:
-        continue
-    else:
-        by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols]= (by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols] - temp_mean[temp_cols])/temp_std[temp_cols]
+    
+    temp_cols_missing=temp_cols_all-set(temp_cols)
+    by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols]= (by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols] - temp_mean[temp_cols])/temp_std[temp_cols]
+    by_game_data.loc[(temp_class==by_game_data.Class) & (temp_pos==by_game_data.Pos) ,temp_cols_missing]=0
+    
+    
     
 
-means=samp.loc[:,x_numerical_cols].mean(axis=0)
-stds=samp.loc[:,x_numerical_cols].std(axis=0)
+means=samp.loc[:,x_numerical_cols].replace(0, np.nan).mean(skipna=True)   #.mean(axis=0)
+stds=samp.loc[:,x_numerical_cols].replace(0, np.nan).std(skipna=True)    #.std(axis=0)
 samp.loc[:,x_numerical_cols]=(samp.loc[:,x_numerical_cols]-means)/stds
 
 
@@ -159,9 +170,12 @@ for i in range(class_pos.shape[0]):
         samp.loc[(temp_class==samp.Class) & (temp_pos==samp.Pos) ,temp_cols]= (samp.loc[(temp_class==samp.Class) & (temp_pos==samp.Pos) ,temp_cols] - temp_mean[temp_cols])/temp_std[temp_cols]
 """
 
-view_data=samp.iloc[1:1000,:]
+view_data=samp.loc[samp.boxscore_href=='2021-01-11-alabama',:]
+view_data=samp.loc[samp.player_href=='fred-warner-1',:]
+view_data=samp.loc[samp.player_href=='marcus-williams-9',:]
 
 
+x_numerical_cols.append('height_weight_na')
 
 import torch
 def make_x_data_tensor(player_id,debug_flag=''):
@@ -285,14 +299,6 @@ for j in range(len(s)):
 
 samp.groupby('Pos').count()
 samp.groupby('Class').count()
-
-
-#from torch.utils.tensorboard import SummaryWriter
-
-
-
-    
-    #writer.add_scalar('Loss/test', np.random.random(), n_iter)
     
     
 ### model training 
@@ -307,8 +313,8 @@ loss = torch.nn.MSELoss()
 
 #loss = torch.nn.GaussianNLLLoss()
 
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-7,nesterov=True,momentum=0.5)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.9)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-4)
+#scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 #scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',patience=5)
 
 iters=500
@@ -351,7 +357,7 @@ for k in range(iters):
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
     print( samples.loc[samples.college_id==train_ids[loss_list.index(max(loss_list))],:] )    
     #writer.add_scalar('Loss/train', np.mean(loss_list), k)
-    scheduler.step()
+    #scheduler.step()
     
         
     if (k+1) % 10 ==0:
@@ -389,7 +395,7 @@ for k in range(iters):
             gg=gg.reshape(-1, len(gg))
             x_pred=pd.DataFrame(gg,columns=cols+['snapcounts'])
             
-            x_pred=x_pred*y_stds+y_means            
+            #x_pred=x_pred*y_stds+y_means            
             x_pred['player_id']=test_ids[t]
             x_pred['type']='prediction'
             
@@ -397,7 +403,7 @@ for k in range(iters):
             gg=gg.reshape(-1, len(gg))
             x_actual=pd.DataFrame(gg,columns=cols+['snapcounts'])
             
-            x_actual=x_actual*y_stds+y_means            
+            #x_actual=x_actual*y_stds+y_means            
             x_actual['player_id']=test_ids[t]
             x_actual['type']='actual'
             
@@ -406,5 +412,4 @@ for k in range(iters):
                         
         print('TEST DATA SET LOSS:')
         print(np.mean(losses_test))
-
-
+        print( samples.loc[samples.college_id==test_ids[losses_test.index(max(losses_test))],:] )
