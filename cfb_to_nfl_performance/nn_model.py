@@ -117,7 +117,10 @@ class NeuralNetwork_v2(nn.Module):
         opp_team=opp_team.flatten()
 
         result=self.layer_final( torch.cat( (player,own_class_pos,opp_class_pos,own_team,opp_team)  )  )
-        result=torch.nn.functional.relu(result)
+        result1=torch.nn.functional.relu(result[0:42])
+        
+        
+        result=torch.cat( (result1,result[42:43]) )
         
         return result
 
