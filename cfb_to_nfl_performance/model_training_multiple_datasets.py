@@ -44,14 +44,11 @@ samples.loc[:,'snapcounts']=samples.loc[:,'snapcounts'].div(samples.years_played
 
 
 """ normalize maybe? """
-y_snapcount_mean=samples.loc[:,['snapcounts']].replace(0, np.nan).mean(skipna=True)
-y_snapcount_std=samples.loc[:,['snapcounts']].replace(0, np.nan).std(skipna=True)
-
-#y_means=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).mean(skipna=True)
-#y_stds=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).std(skipna=True)
+y_means=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).mean(skipna=True)
+y_stds=samples.loc[:,cols+['snapcounts']].replace(0, np.nan).std(skipna=True)
 #y_means=samples.loc[:,cols+['snapcounts']].mean(axis=0)
 #y_stds=samples.loc[:,cols+['snapcounts']].std(axis=0)
-samples.loc[:,['snapcounts']]=( samples.loc[:,['snapcounts']] - y_snapcount_mean )/y_snapcount_std
+samples.loc[:,cols+['snapcounts']]=( samples.loc[:,cols+['snapcounts']] - y_means )/y_stds
 
 ###################################
 #samples.groupby(['first_year']).count()
@@ -316,7 +313,7 @@ loss = torch.nn.MSELoss()
 
 #loss = torch.nn.GaussianNLLLoss()
 
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-6)
+optimizer = torch.optim.SGD(nn.parameters(), lr=1e-4)
 #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 #scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',patience=5)
 
