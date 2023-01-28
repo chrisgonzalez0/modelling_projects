@@ -19,7 +19,7 @@ os.chdir('/Users/chrisgonzalez/Documents/projects/cfb_to_nfl_performance/')
 engine = create_engine('postgresql://postgres:estarguars@localhost:5432/postgres')
 
 ## y data
-sql_query='select n.* from nfl_player_snaps_table n where n.snapcounts > 49 and n.college_id is not null'
+sql_query='select n.* from nfl_player_snaps_table_yr1 n where n.snapcounts > 49 and n.college_id is not null'
 samples=pd.read_sql_query(sql=sql_query, con=engine)
 cols=['Passing_Cmp', 'Passing_Att', 'Passing_Yds', 'Passing_TD',
       'Passing_Int', 'Passing_Sk', 'Passing_Sk_Yds', 'Rushing_Att',
@@ -74,7 +74,14 @@ x_numerical_cols=['Pts','Opp','G','wins_so_far','losses_so_far','Passing_Att',
             'Receiving_Yds', 'Receiving_TD', 'Tackles_Solo', 'Tackles_Ast',
             'Tackles_Tot', 'Tackles_Loss', 'Tackles_Sk', 'Def Int_Int',
             'Def Int_Yds', 'Def Int_TD', 'Def Int_PD', 'Fumbles_FR', 
-            'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF','height_inches','weight']
+            'Fumbles_Yds','Fumbles_TD', 'Fumbles_FF',
+            
+            'Kick Ret_Ret',
+            'Kick Ret_Yds', 'Kick Ret_TD', 'Punt Ret_Ret', 'Punt Ret_Yds',
+            'Punt Ret_TD', 'Kicking_XPM', 'Kicking_XPA', 'Kicking_FGM',
+            'Kicking_FGA', 'Punting_Punts', 'Punting_Yds',
+            
+            'height_inches','weight']
 means=samp.loc[:,x_numerical_cols].mean(axis=0)
 stds=samp.loc[:,x_numerical_cols].std(axis=0)
 
@@ -104,7 +111,7 @@ import torch
 
 def make_x_data_tensor(player_id,debug_flag=''):
     
-    x_data=torch.zeros([48,2,180,89])
+    x_data=torch.zeros([48,2,180,101])
     college_id=player_id
     #college_id='corey-thompson-3'
     
@@ -173,12 +180,12 @@ def make_x_data_tensor(player_id,debug_flag=''):
                 print(torch.isnan(x_data[i][1]).any())
             
         else:
-            same_team_temp=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
+            same_team_temp=pd.DataFrame(np.zeros([180,101]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
             same_team_temp['na_game']=1
             same_team_temp['na_player']=1
             same_team_temp=np.array(same_team_temp)
             
-            opp_team_temp=pd.DataFrame(np.zeros([180,89]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
+            opp_team_temp=pd.DataFrame(np.zeros([180,101]),columns=x_numerical_cols+x_categoricals+['team_rank','team_rank_NR','is_player','na_player','na_game'])        
             opp_team_temp['na_game']=1
             opp_team_temp['na_player']=1
             opp_team_temp=np.array(opp_team_temp)
@@ -199,16 +206,20 @@ for j in range(len(s)):
     
     torch.save(x_train, 'saved_tensors/x_'+s[j]+'.pt')
     torch.save(y_train, 'saved_tensors/y_'+s[j]+'.pt')
+
+## save just in case here too 
+##samples.to_csv('nfl_samp.csv')
 #################
 
 
 ### model training 
 import nn_model
-nn=nn_model.NeuralNetwork(4,4,4,10)
+nn=nn_model.NeuralNetwork(10,4,16,16)
 loss = torch.nn.MSELoss()
-optimizer = torch.optim.SGD(nn.parameters(), lr=1e-5,momentum=0.9,nesterov=True)
+optimizer = torch.optim.Adam(nn.parameters(), lr=1e-6)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
-iters=1000
+iters=500
 for k in range(iters):
     loss_list=[]
     
@@ -228,8 +239,15 @@ for k in range(iters):
         
         ### shuffle rows
         x_temp=x_train[:,0,:,:]
-        x_temp=x_temp[:,torch.randperm(x_train.size(2)),:]
+        for n in range(x_temp.shape[0]):
+            x_temp2=x_temp[n,:,:].detach().numpy()
+            x_temp2=torch.tensor(x_temp2[x_temp2[:,86].argsort()])
+            x_temp[n,:,:]=x_temp2
         x_train[:,0,:,:]=x_temp
+        
+        x_temp=x_train[:,0,0:179,:]
+        x_temp=x_temp[:,torch.randperm(x_train.size(2)-1),:]        
+        x_train[:,0,0:179,:]=x_temp
         
         x_temp=x_train[:,1,:,:]
         x_temp=x_temp[:,torch.randperm(x_train.size(2)),:]
@@ -250,8 +268,11 @@ for k in range(iters):
         loss_list.append(loss_val.item())
         
     print('iteration: '+str(k)+' loss average: '+str(np.mean(loss_list)))
+    scheduler.step()
     
-    if k % 50 ==0:
+    if k % 10 ==0:
+        compare=pd.DataFrame(columns=cols+['snapcounts','player_id','type'])
+        
         """ evaluate test data sets """    
         losses_test=[]
         loss_eval = torch.nn.MSELoss()
@@ -260,11 +281,40 @@ for k in range(iters):
             x_test=torch.load('saved_tensors/x_'+test_ids[t]+'.pt')
             y_test=torch.load('saved_tensors/y_'+test_ids[t]+'.pt')
             
+            ### shuffle rows
+            x_temp=x_test[:,0,:,:]
+            for n in range(x_temp.shape[0]):
+                x_temp2=x_temp[n,:,:].detach().numpy()
+                x_temp2=torch.tensor(x_temp2[x_temp2[:,86].argsort()])
+                x_temp[n,:,:]=x_temp2
+            x_test[:,0,:,:]=x_temp
+            
+            x_temp=x_test[:,0,0:179,:]
+            x_temp=x_temp[:,torch.randperm(x_test.size(2)-1),:]        
+            x_test[:,0,0:179,:]=x_temp
+
+            
             x_vals_test=nn(x_test).float()
-            loss_val_eval=loss_eval(x_vals,y_test)
+            loss_val_eval=loss_eval(x_vals_test,y_test)
             losses_test.append(loss_val_eval.item())
+            
+            ## put together preds/actuals
+            gg=x_vals_test.detach().numpy()
+            gg=gg.reshape(-1, len(gg))
+            x_pred=pd.DataFrame(gg,columns=cols+['snapcounts'])
+            x_pred=x_pred*y_stds+y_means            
+            x_pred['player_id']=test_ids[t]
+            x_pred['type']='prediction'
+            
+            gg=y_test.detach().numpy()
+            gg=gg.reshape(-1, len(gg))
+            x_actual=pd.DataFrame(gg,columns=cols+['snapcounts'])
+            x_actual=x_actual*y_stds+y_means            
+            x_actual['player_id']=test_ids[t]
+            x_actual['type']='actual'
+            
+            compare=pd.concat([compare,x_pred,x_actual])
+            #############################
+                        
         print('TEST DATA SET LOSS:')
         print(np.mean(losses_test))
-
-
-
